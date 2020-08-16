@@ -1,0 +1,151 @@
+body {
+font-family: Verdana, sans-serif;
+font-size: 0.80em;
+margin: 0;
+padding: 0;
+}
+
+#header {
+position: relative;
+border-top: 8px solid rgb(38, 144, 117);
+height: 3.5rem;
+color: #ffffff;
+background-color: #000000;
+font-family: Arial;
+font-size: 20px;
+padding: 14px 20px;
+}
+
+#logo {
+display: inline-block;
+margin-top: 0.5rem;
+height:2.5rem;
+}
+
+#content{
+margin: 20px;
+}
+
+#welcome{
+margin-top: 80px;
+width: 100%;
+font-size: 32px;
+text-align: center;
+}
+
+#welcome p{
+font-size: 20px;
+margin-top: 40px;
+}
+
+#powered{
+position: fixed;
+right: 8px;
+bottom: 20px;
+display: inline-block;
+}
+
+#powered img{
+height: 6rem;
+}
+
+#login{
+position: absolute;
+top: 26px;
+right: 80px;
+}
+
+label {
+display: block;
+font-size: 18px;
+font-weight: bold;
+margin: 20px 0 10px 0;
+}
+
+#loginFormDiv{
+visibility: hidden;
+}
+
+#loginBtn{
+border: 2px solid #ffffff;
+font-size: 18px;
+border-radius: 4px;
+padding: 4px 8px;
+cursor: pointer;
+}
+
+#submitBtn, input[type="button"] {
+margin-top: 30px;
+border: 2px solid #333333;
+color: #ffffff;
+background-color: #000000;
+font-size: 14px;
+border-radius: 4px;
+padding: 4px 8px;
+cursor: pointer;
+}
+
+.radioSpan{
+font-size: 16px;
+}
+
+.errorMsg{
+font-weight: bold;
+color: #b00;
+font-size: 14px;
+}
+
+#uploadMetadata{
+position: absolute;
+display: block;
+top: 176px;
+left: 24px;
+width: 250px;
+background-color: #ddd;
+border: 1px solid #000000;
+border-radius: 4px;
+padding: 20px;
+}
+
+.mdLabel{
+font-weight: bold;
+}
+
+.mdRow{
+margin-bottom: 20px;
+}
+
+.mdRow:last-child {
+margin-bottom: 0;
+}
+
+.noView {
+display: none !important;
+}
+
+#hint {
+margin-top:8px;
+font-size: 12px;
+color: #999999;
+}
+
+#fileStatus{
+font-size: 12px;
+text-align: left;
+display: inline-block;
+}
+
+.fileStatusError {
+display: inline-block;
+margin: 8px 4px 0 0;
+color: #b00;
+}
+
+.fileStatusName, .progress {
+display: inline-block;
+margin: 8px 4px 0 0;
+}
+
+.fileStatusName {
+font-weight: bold;
+}
