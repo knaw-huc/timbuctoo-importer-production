@@ -1,5 +1,5 @@
 const login_server = 'https://secure.huygens.knaw.nl/saml2/login';
-const home = "https://www.huc.localhost/timbuctoo_uploader/";
+const home = "https://timporter.sd.di.huc.knaw.nl/";
 const resources = {
     tim: {url: "https://repository.huygens.knaw.nl/v5/", name: "Huygens Timbuctoo"},
     gol: {url: "https://repository.goldenagents.org/v5/", name: "Golden Agents"}
