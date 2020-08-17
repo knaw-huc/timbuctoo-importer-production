@@ -6,7 +6,7 @@ networks:
       name: nginxproxynetwork
 
 services:
-  esta:
+  timport:
     build:
       context: ./
       dockerfile: Dockerfile
@@ -15,6 +15,6 @@ services:
     environment:
       - VIRTUAL_HOST=timporter.sd.di.huc.knaw.nl
     ports:
-      - 80:80
+      - 8084:80
     networks:
       - timporter_network
