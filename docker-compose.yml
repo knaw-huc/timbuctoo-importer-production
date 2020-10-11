@@ -15,6 +15,6 @@ services:
     environment:
       - VIRTUAL_HOST=timporter.sd.di.huc.knaw.nl
     ports:
-      - 8084:80
+      - 8085:80
     networks:
       - timporter_network
