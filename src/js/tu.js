@@ -33,6 +33,15 @@ function init() {
             if ($("#actiontype").val() === "existing") {
                 get_dataset_names();
             }
+            if ($("#actiontype").val() === "alles") {
+                get_dataset_names();
+            }
+            if ($("#actiontype").val() === "show_dataset") {
+                get_dataset_details();
+            }
+            if ($("#actiontype").val() === "edit_metadata") {
+                get_dataset_details();
+            }
         } else {
             create_metadata("Dataset", $("#ds_name").val());
         }
@@ -93,21 +102,21 @@ async function startSending(owner_id, files) {
 function makePreparationsAndSend(json, owner_id, files) {
     startStatusIndex = json.data.dataSetMetadata.dataSetImportStatus.length;
     for (var i = 0; i < files.length; i++) {
-            const extension = files[i].name.split('.').slice(-1)[0];
-            if (extension === 'gz') {
-                fileType = files[i].name.split('.').slice(-2)[0];
-                if (correct_mimetype(fileType)) {
-                    createFileStatusLine(files[i]);
-                    send_file(files[i], owner_id, $("#ds_name").val());
-                } else {
-                    create_metadata('Rejected file', files[i].name);
-                }
-            } else {
+        const extension = files[i].name.split('.').slice(-1)[0];
+        if (extension === 'gz') {
+            fileType = files[i].name.split('.').slice(-2)[0];
+            if (correct_mimetype(fileType)) {
                 createFileStatusLine(files[i]);
                 send_file(files[i], owner_id, $("#ds_name").val());
+            } else {
+                create_metadata('Rejected file', files[i].name);
             }
+        } else {
+            createFileStatusLine(files[i]);
+            send_file(files[i], owner_id, $("#ds_name").val());
         }
-        check_process();
+    }
+    check_process();
 }
 
 async function check_process() {
@@ -213,8 +222,7 @@ async function send_file(file, owner_id, datasetName) {
     if (response.ok) {
         create_metadata('Uploaded', file.name);
         //$("#uploadStatus").addClass("noView");
-    }
-    else {
+    } else {
         const paragragh = document.createElement("p");
         paragraph.html(response.statusText);
         $("#uploadError").append(paragraph);
@@ -324,6 +332,13 @@ function get_dataset_names() {
     timbuctoo_requests(url, query, hsid);
 }
 
+function get_dataset_details() {
+    url = resources[$("#repo").val()].url + "graphql";
+    hsid = $("#hsid").val();
+    query = "query datasetMetaData {dataSets {" + $("#dataset_id").val() +  " {metadata {dataSetId dataSetName title {value} description {value} owner {name {value} email {value}} contact {name {value} email {value}} provenanceInfo {title {value} body {value}}}}}}";
+    timbuctoo_requests(url, query, hsid);
+}
+
 async function whoAmI(hsid) {
     let response = await fetch(resources[$("#repo").val()].url + "graphql", {
         method: "POST",
@@ -342,6 +357,25 @@ async function whoAmI(hsid) {
     }
 }
 
+function myDatasets() {
+    window.location = home + "?actiontype=alles&hsid=" + $("#hsid").val() + "&repo=" + $("#repo").val();
+}
+
+async function timbuctoo_submit(url, query, vars, hsid) {
+    let response = await fetch(url, {
+        method: "POST",
+        body: JSON.stringify({"query": query, "variables": vars}),
+        headers: {
+            authorization: hsid,
+            'Content-Type': 'application/json'
+        }
+    });
+    if (response.ok) {
+        result = await response.json();
+        myDatasets();
+    }
+}
+
 async function timbuctoo_requests(url, query, hsid) {
     let response = await fetch(url, {
         method: "POST",
@@ -353,14 +387,148 @@ async function timbuctoo_requests(url, query, hsid) {
     });
     if (response.ok) {
         result = await response.json();
-        for (var key in result.data.aboutMe.dataSetMetadataList) {
-            var option = document.createElement('option');
-            $(option).attr("value", result.data.aboutMe.dataSetMetadataList[key].dataSetId);
-            $(option).html(result.data.aboutMe.dataSetMetadataList[key].dataSetName);
-            $("#ds_select").append(option);
+        switch ($("#actiontype").val()) {
+            case "existing":
+                buildSelect(result);
+                break;
+            case "alles":
+                buildList(result);
+                break;
+            case "show_dataset":
+                dataset_data(result);
+                break;
+            case "delete_dataset":
+                myDatasets();
+                break;
+            case "edit_metadata":
+                dataset_edit_data(result);
+                break;
+            default:
+                home();
         }
     } else {
         console.log(response.statusText);
+    }
+}
+
+function delete_dataset() {
+    if (confirm("Do you want to delete this dataset?")) {
+        url = resources[$("#repo").val()].url + "graphql";
+        hsid = $("#hsid").val();
+        query = "mutation {deleteDataSet(dataSetId: \"" + $("#dataset_id").val() + "\") {dataSetId}}";
+        $("#actiontype").val("delete_dataset");
+        timbuctoo_requests(url, query, hsid);
+    }
+}
+
+function sendDataSetData() {
+    url = resources[$("#repo").val()].url + "graphql";
+    hsid = $("#hsid").val();
+        query = "mutation setMetadata($dataSet:String!, $metadata:DataSetMetadataInput!){setDataSetMetadata(dataSetId:$dataSet,metadata:$metadata){ title{value} description{value} owner{name{value} email{value}} contact{name{value} email{value}} provenanceInfo{title{value} body{value}}}}";
+        variables = {
+            dataSet: $("#dataset_id").val(),
+            metadata: {
+                title: $("#dsdTitle").val(),
+                description: $("#dsdDescription").val(),
+                owner: {
+                    name: $("#dsdOwnerName").val(),
+                    email: $("#dsdOwnerEmail").val()
+                },
+                contact: {
+                    name: $("#dsdContactName").val(),
+                    email: $("#dsdContactEmail").val()},
+                provenanceInfo: {
+                    title: $("#dsdProvenanceTitle").val(),
+                    body: $("#dsdProvenanceBody").val()
+                }
+            }
+        };
+    $("#actiontype").val("submit_data");
+    timbuctoo_submit(url, query, variables, hsid);
+}
+
+function editDataset() {
+    window.location = home + "?hsid=" + $("#hsid").val() + "&dataset_id=" + $("#dataset_id").val() + "&repo=" + $("#repo").val() + "&actiontype=edit_metadata";
+}
+
+function goHome() {
+    if ($("#hsid").val !== undefined) {
+        window.location = home + "?hsid=" + $("#hsid").val();
+    } else {
+        window.location = home;
+    }
+}
+
+function dataset_data(result) {
+    $("#dsdID").html(result.data.dataSets[$("#dataset_id").val()].metadata.dataSetId);
+    $("#dsdName").html(result.data.dataSets[$("#dataset_id").val()].metadata.dataSetName);
+    if (result.data.dataSets[$("#dataset_id").val()].metadata.title !== null) {
+        $("#dsdTitle").html(result.data.dataSets[$("#dataset_id").val()].metadata.title.value);
+    }
+    if (result.data.dataSets[$("#dataset_id").val()].metadata.description !== null) {
+        $("#dsdDescription").html(result.data.dataSets[$("#dataset_id").val()].metadata.description.value);
+    }
+    if (result.data.dataSets[$("#dataset_id").val()].metadata.owner) {
+        $("#dsdOwnerName").html(result.data.dataSets[$("#dataset_id").val()].metadata.owner.name.value);
+        $("#dsdOwnerEmail").html(result.data.dataSets[$("#dataset_id").val()].metadata.owner.email.value);
+    }
+    if (result.data.dataSets[$("#dataset_id").val()].metadata.contact !== null) {
+        $("#dsdContactName").html(result.data.dataSets[$("#dataset_id").val()].metadata.contact.name.value);
+        $("#dsdContactEmail").html(result.data.dataSets[$("#dataset_id").val()].metadata.contact.email.value);
+    }
+
+    if (result.data.dataSets[$("#dataset_id").val()].metadata.provenanceInfo !== null) {
+        $("#dsdProvenanceTitle").html(result.data.dataSets[$("#dataset_id").val()].metadata.provenanceInfo.title.value);
+        $("#dsdProvenanceBody").html(result.data.dataSets[$("#dataset_id").val()].metadata.provenanceInfo.body.value);
+    }
+}
+
+function dataset_edit_data(result) {
+    console.log(result);
+    $("#dsdID").html(result.data.dataSets[$("#dataset_id").val()].metadata.dataSetId);
+    $("#dsdName").html(result.data.dataSets[$("#dataset_id").val()].metadata.dataSetName);
+    if (result.data.dataSets[$("#dataset_id").val()].metadata.title !== null) {
+        $("#dsdTitle").val(result.data.dataSets[$("#dataset_id").val()].metadata.title.value);
+    }
+    if (result.data.dataSets[$("#dataset_id").val()].metadata.description !== null) {
+        $("#dsdDescription").val(result.data.dataSets[$("#dataset_id").val()].metadata.description.value);
+    }
+    if (result.data.dataSets[$("#dataset_id").val()].metadata.owner) {
+        $("#dsdOwnerName").val(result.data.dataSets[$("#dataset_id").val()].metadata.owner.name.value);
+        $("#dsdOwnerEmail").val(result.data.dataSets[$("#dataset_id").val()].metadata.owner.email.value);
+    }
+    if (result.data.dataSets[$("#dataset_id").val()].metadata.contact !== null) {
+        $("#dsdContactName").val(result.data.dataSets[$("#dataset_id").val()].metadata.contact.name.value);
+        $("#dsdContactEmail").val(result.data.dataSets[$("#dataset_id").val()].metadata.contact.email.value);
+    }
+
+    if (result.data.dataSets[$("#dataset_id").val()].metadata.provenanceInfo !== null) {
+        $("#dsdProvenanceTitle").val(result.data.dataSets[$("#dataset_id").val()].metadata.provenanceInfo.title.value);
+        $("#dsdProvenanceBody").val(result.data.dataSets[$("#dataset_id").val()].metadata.provenanceInfo.body.value);
+    }
+
+}
+
+function buildSelect(result) {
+    for (var key in result.data.aboutMe.dataSetMetadataList) {
+        var option = document.createElement('option');
+        $(option).attr("value", result.data.aboutMe.dataSetMetadataList[key].dataSetId);
+        $(option).html(result.data.aboutMe.dataSetMetadataList[key].dataSetName);
+        $("#ds_select").append(option);
+    }
+}
+
+function buildList(result) {
+    for (var key in result.data.aboutMe.dataSetMetadataList) {
+        var div = document.createElement('div');
+        $(div).addClass("dsSelector");
+        var link = document.createElement("a");
+        $(link).addClass("ds");
+        link.href = home + "?actiontype=show_dataset&dataset_id=" + result.data.aboutMe.dataSetMetadataList[key].dataSetId + "&repo=" + $("#repo").val() + "&hsid=" + $("#hsid").val();
+        $(link).html(result.data.aboutMe.dataSetMetadataList[key].dataSetName);
+        $(div).attr("value", result.data.aboutMe.dataSetMetadataList[key].dataSetId);
+        $(div).append(link);
+        $("#myDataSets").append(div);
     }
 }
 

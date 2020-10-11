@@ -22,6 +22,39 @@ margin-top: 0.5rem;
 height:2.5rem;
 }
 
+.ds{
+text-decoration: none;
+color: #555555;
+font-size: 0.50em;
+font-weight: bold;
+}
+
+.dsTableHeader{
+font-weight: bold;
+background-color: #cccccc;
+}
+
+#datasetTable{
+margin-left: 400px;
+font-size: 14px;
+text-align: left;
+padding: 8px;
+}
+
+#buttonConsole{
+margin-left: 400px;
+text-align: left;
+}
+
+.fieldLabel{
+font-weight: bold;
+vertical-align: top;
+}
+
+.fieldLabel:after {
+content: ":";
+}
+
 #content{
 margin: 20px;
 }

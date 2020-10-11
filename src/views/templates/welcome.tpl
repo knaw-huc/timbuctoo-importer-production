@@ -1,6 +1,6 @@
 <div id="welcome">
-    Welcome to the <strong>Real</strong> Timbuctoo Uploader!
-    <p>Login for dataset creation and uploads with the <strong>Real</strong> Timbuctoo Uploader Wizard.</p>
+    Welcome to the Timbuctoo Uploader!
+    <p>Login for dataset management and uploads with the Timbuctoo Uploader.</p>
 </div>
 <div id="loginFormDiv">
 </div>

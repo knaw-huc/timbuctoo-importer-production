@@ -15,8 +15,8 @@
     {/if}
 </head>
 <body>
-<div id="header"><a href="{$home_path}"><img id="logo" alt="logo huygens ING" src="{$home_path}img/huygens.png"></a>
-<div id="login">{if !$logged_in}<div id="loginBtn" onclick="login()">Login</div>{/if}</div>
+<div id="header"><a href="#" onclick="goHome()"><img id="logo" alt="logo huygens ING" src="{$home_path}img/huygens.png"></a>
+<div id="login">{if !$logged_in}<div id="loginBtn" onclick="login()">Login</div>{else}{if isset($repo)}<div id="loginBtn" onclick="myDatasets()">My datasets</div>{/if}{/if}</div>
 </div>
 <div id="content">
     {$content}

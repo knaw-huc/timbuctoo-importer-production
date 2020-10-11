@@ -28,6 +28,29 @@ function choose_type($hsid, $repo) {
     $smarty->view('page');
 }
 
+function show_datasets($hsid, $repo, $actiontype) {
+    global $smarty;
+
+    $smarty->assign('logged_in', true);
+    $smarty->assign('hsid', $hsid);
+    $smarty->assign('repo', $repo);
+    $smarty->assign('actiontype', $actiontype);
+    $smarty->assign('content', $smarty->view2var('show_datasets'));
+    $smarty->view('page');
+}
+
+function show_dataset_details($hsid, $repo, $actiontype, $dataset_id) {
+    global $smarty;
+
+    $smarty->assign('logged_in', true);
+    $smarty->assign('hsid', $hsid);
+    $smarty->assign('repo', $repo);
+    $smarty->assign('actiontype', $actiontype);
+    $smarty->assign('dataset_id', $dataset_id);
+    $smarty->assign('content', $smarty->view2var('show_dataset_details'));
+    $smarty->view('page');
+}
+
 function select_dataset($hsid, $repo, $actiontype) {
     global $smarty;
 
@@ -40,6 +63,18 @@ function select_dataset($hsid, $repo, $actiontype) {
     } else {
         $smarty->assign('content', $smarty->view2var('choose_dataset_name_existing'));
     }
+    $smarty->view('page');
+}
+
+function edit_metadata($hsid, $repo, $actiontype, $dataset_id) {
+    global $smarty;
+
+    $smarty->assign('logged_in', true);
+    $smarty->assign('hsid', $hsid);
+    $smarty->assign('repo', $repo);
+    $smarty->assign('actiontype', $actiontype);
+    $smarty->assign('dataset_id', $dataset_id);
+    $smarty->assign('content', $smarty->view2var('edit_dataset_details'));
     $smarty->view('page');
 }
 
