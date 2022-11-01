@@ -7,6 +7,8 @@ require(dirname(__FILE__) . '/includes/functions.php');
 $URI = $_SERVER["REQUEST_URI"];
 if (isset($_GET["hsid"]))
 {
+
+
     if (isset($_GET["repo"]))
     {
         if (isset($_GET["actiontype"])) {
@@ -20,6 +22,13 @@ if (isset($_GET["hsid"]))
                     case "show_dataset":
                         if (isset($_GET["dataset_id"])) {
                             show_dataset_details($_GET["hsid"], $_GET["repo"], $_GET["actiontype"], $_GET["dataset_id"]);
+                        } else {
+                            home();
+                        }
+                        break;
+                    case "show_status":
+                        if (isset($_GET["dataset_id"])) {
+                            show_dataset_status($_GET["hsid"], $_GET["repo"], $_GET["actiontype"], $_GET["dataset_id"]);
                         } else {
                             home();
                         }

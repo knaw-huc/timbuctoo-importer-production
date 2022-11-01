@@ -14,6 +14,8 @@ services:
     restart: always
     environment:
       - VIRTUAL_HOST=timporter.sd.di.huc.knaw.nl
+    volumes:
+      - /home/robz/:/home
     ports:
       - 8085:80
     networks:

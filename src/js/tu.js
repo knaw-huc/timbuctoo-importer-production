@@ -1,10 +1,119 @@
 const login_server = 'https://secure.huygens.knaw.nl/saml2/login';
-//const home = "https://www.huc.localhost/timbuctoo_uploader/";
-const home = "https://timporter.sd.di.huc.knaw.nl/";
+const home = "http://www.huc.localhost/timbuctoo_uploader/";
+//const home = "https://timporter.sd.di.huc.knaw.nl/";
+
+const defaultMetadata = [{
+    key: 'title',
+    label: 'Title',
+    type: 'single'
+}, {
+    key: 'description',
+    label: 'Description',
+    type: 'multi'
+}, {
+    key: 'imageUrl',
+    label: 'Image URL',
+    type: 'single'
+}, {
+    key: 'license',
+    label: 'License',
+    type: 'uri'
+}, {
+    key: 'owner',
+    label: 'Owner',
+    type: [{
+        key: 'name',
+        label: 'Name',
+        type: 'single'
+    }, {
+        key: 'email',
+        label: 'Email',
+        type: 'single'
+    }]
+}, {
+    key: 'contact',
+    label: 'Contact',
+    type: [{
+        key: 'name',
+        label: 'Name',
+        type: 'single'
+    }, {
+        key: 'email',
+        label: 'Email',
+        type: 'single'
+    }]
+}, {
+    key: 'provenanceInfo',
+    label: 'Provenance',
+    type: [{
+        key: 'title',
+        label: 'Title',
+        type: 'single'
+    }, {
+        key: 'body',
+        label: 'Body',
+        type: 'multi'
+    }]
+}];
+
+const gaMetadata = [{
+    key: 'title',
+    label: 'Title',
+    type: 'single'
+}, {
+    key: 'description',
+    label: 'Description',
+    type: 'multi'
+}, {
+    key: 'image',
+    label: 'Image URL',
+    type: 'uri'
+}, {
+    key: 'license',
+    label: 'License',
+    type: 'uri'
+}, {
+    key: 'publisher',
+    label: 'Publisher',
+    type: 'single'
+}, {
+    key: 'creator',
+    label: 'Creator',
+    type: 'single'
+}, {
+    key: 'contributor',
+    label: 'Contributor',
+    type: 'single'
+}, {
+    key: 'dataProvider',
+    label: 'Data provider',
+    type: 'single'
+}, {
+    key: 'subject',
+    label: 'Subject',
+    type: 'single'
+}, {
+    key: 'source',
+    label: 'Source',
+    type: 'single'
+}, {
+    key: 'created',
+    label: 'Created',
+    type: 'single'
+}, {
+    key: 'modified',
+    label: 'Modified',
+    type: 'single'
+}, {
+    key: 'sparqlEndpoint',
+    label: 'SPARQL endpoint',
+    type: 'uri'
+}];
+
 const resources = {
-    loc: {url: "http://localhost:8080/v5/", name: "Local Timbuctoo"},
-    tim: {url: "https://repository.huygens.knaw.nl/v5/", name: "Huygens Timbuctoo"},
-    gol: {url: "https://repository.goldenagents.org/v5/", name: "Golden Agents"}
+    loc: {url: "http://localhost:8080/v5/", name: "Local Timbuctoo", metadata: defaultMetadata},
+    tim: {url: "https://repository.huygens.knaw.nl/v5/", name: "Huygens Timbuctoo", metadata: defaultMetadata},
+    gol: {url: "https://repository.goldenagents.org/v5/", name: "Golden Agents", metadata: gaMetadata}
 }
 
 const mimeTypes = {
@@ -16,9 +125,7 @@ const mimeTypes = {
     xml: 'application/rdf+xml'
 }
 let user_id = '';
-let user_name = '';
 let acceptedFiles = 0;
-let startStatusIndex = 0;
 
 function init() {
     //$("#login").html("Logged in");
@@ -26,6 +133,7 @@ function init() {
         $("#uploadMetadata").removeClass("noView");
         create_metadata('Repository', resources[$("#repo").val()].name);
         whoAmI($("#hsid").val());
+        get_creds($("#hsid").val());
     }
     if ($("#actiontype").length) {
         create_metadata('Action', selectAction($("#actiontype").val()));
@@ -41,6 +149,10 @@ function init() {
             }
             if ($("#actiontype").val() === "edit_metadata") {
                 get_dataset_details();
+            }
+            if ($("#actiontype").val() === "show_status") {
+                get_dataset_details();
+                check_process();
             }
         } else {
             create_metadata("Dataset", $("#ds_name").val());
@@ -69,61 +181,35 @@ function validateFiles() {
         $("#fileError").html("No files selected!");
     } else {
         create_upload_status_element();
-        startSending(owner_id, files);
-
-    }
-
-}
-
-async function startSending(owner_id, files) {
-    const url = resources[$("#repo").val()].url + "graphql";
-    const dataset = $("#ds").val();
-    const hsid = $("#hsid").val();
-    query = 'query {dataSetMetadata(dataSetId: "' + dataset + '") {dataSetImportStatus {id status source progress {label status progress} errorObjects {dateStamp file method message error}}}}';
-    console.log(query);
-    let response = await fetch(url, {
-        method: "POST",
-        body: JSON.stringify({"query": query}),
-        headers: {
-            authorization: hsid,
-            VRE_ID: dataset,
-            'Content-Type': 'application/json'
-        }
-    });
-
-    if (response.ok) {
-        let json = await response.json();
-        makePreparationsAndSend(json, owner_id, files);
-    } else {
-        alert("HTTP-Error: " + response.status);
+        makePreparationsAndSend(owner_id, files);
     }
 }
 
-function makePreparationsAndSend(json, owner_id, files) {
-    startStatusIndex = json.data.dataSetMetadata.dataSetImportStatus.length;
-    for (var i = 0; i < files.length; i++) {
-        const extension = files[i].name.split('.').slice(-1)[0];
+async function makePreparationsAndSend(owner_id, files) {
+    const allFiles = Array.from(files).map(file => {
+        const codedFileName = file.name.split('.').join('_');
+        const extension = file.name.split('.').slice(-1)[0];
         if (extension === 'gz') {
-            fileType = files[i].name.split('.').slice(-2)[0];
+            fileType = file.name.split('.').slice(-2)[0];
             if (correct_mimetype(fileType)) {
-                createFileStatusLine(files[i]);
-                send_file(files[i], owner_id, $("#ds_name").val());
-            } else {
-                create_metadata('Rejected file', files[i].name);
+                createFileStatusLine(codedFileName, file.name);
+                return send_file(file, owner_id, $("#ds_name").val());
             }
         } else {
-            createFileStatusLine(files[i]);
-            send_file(files[i], owner_id, $("#ds_name").val());
+            createFileStatusLine(codedFileName, file.name);
+            return send_file(file, owner_id, $("#ds_name").val());
         }
-    }
-    check_process();
+    });
+    await Promise.all(allFiles);
+    $("#importHeader").html("Import completed");
+    $("#spinner").remove();
 }
 
 async function check_process() {
     const url = resources[$("#repo").val()].url + "graphql";
-    const dataset = $("#ds").val();
+    const dataset = $("#dataset_id").val();
     const hsid = $("#hsid").val();
-    query = 'query {dataSetMetadata(dataSetId: "' + dataset + '") {dataSetImportStatus {id status source progress {label status progress} errorObjects {dateStamp file method message error}}}}';
+    query = 'query {dataSetMetadata(dataSetId: "' + dataset + '") {dataSetImportStatus {id status source progress {label status progress speed} errorObjects {dateStamp file method message error}}}}';
     let response = await fetch(url, {
         method: "POST",
         body: JSON.stringify({"query": query}),
@@ -148,46 +234,59 @@ function create_upload_status_element() {
 }
 
 function editStatus(json) {
-    let allExist = true;
-    let status = 'DONE';
-    for (var i = startStatusIndex; i < startStatusIndex + acceptedFiles; i++) {
-        if (json.data.dataSetMetadata.dataSetImportStatus[i] !== undefined) {
-            $("#" + json.data.dataSetMetadata.dataSetImportStatus[i].source.substring(37)).html(json.data.dataSetMetadata.dataSetImportStatus[i].status);
-            if (json.data.dataSetMetadata.dataSetImportStatus[i].status !== 'DONE') {
-                status = json.data.dataSetMetadata.dataSetImportStatus[i].status;
-            } else {
-                if (json.data.dataSetMetadata.dataSetImportStatus[i].errorObjects.length) {
-                    $("#" + json.data.dataSetMetadata.dataSetImportStatus[i].source.substring(37)).html("ERROR! (File not imported)");
-                    const errorMsg = json.data.dataSetMetadata.dataSetImportStatus[i].errorObjects[0].error.split("\n").join("<br/>");
-                    $("#" + json.data.dataSetMetadata.dataSetImportStatus[i].source.substring(37) + "_error").html(errorMsg);
-                }
+    let isDone = true;
+    for (const importStatus of json.data.dataSetMetadata.dataSetImportStatus) {
+        if ($('#' + importStatus.source).length === 0 && importStatus.status !== 'DONE') {
+            createFileStatusLine(importStatus.source, importStatus.source);
+        }
+        if ($('#' + importStatus.source).length > 0) {
+            let status;
+            switch (importStatus.status) {
+                case 'PENDING':
+                    isDone = false;
+                    status = 'Waiting in queue to be processed';
+                    break;
+                case 'IMPORTING':
+                    isDone = false;
+                    const quadstore = importStatus.progress.find(item => item.label === 'BdbQuadStore');
+                    status = quadstore
+                        ? `Processing file (Quads processed: ${quadstore.progress}; Speed: ${quadstore.speed})`
+                        : 'Processing file';
+                    break;
+                case 'DONE':
+                    status = 'File has been successfully processed!';
+                    break;
             }
-        } else {
-            allExist = false;
+
+            $("#" + importStatus.source).html(status);
+            if (importStatus.errorObjects.length) {
+                $("#" + name).html("ERROR! (File not imported)");
+                const errorMsg = importStatus.errorObjects[0].error.split("\n").join("<br/>");
+                $("#" + name + "_error").html(errorMsg);
+            }
         }
     }
 
-    if (allExist && status === 'DONE') {
-        $("#importHeader").html("Import completed");
+    if (isDone) {
+        $("#importHeader").html("All files are processed!");
         $("#spinner").remove();
     } else {
-        setTimeout(check_process, 5000);
+        setTimeout(check_process, 1000);
     }
 
 }
 
-function createFileStatusLine(file) {
-    const codedFileName = file.name.split('.').join('_');
+function createFileStatusLine(codedFileName, fileName) {
     let line = document.createElement('div');
     $(line).addClass("fileStatus");
     let cell = document.createElement('div');
     $(cell).addClass("fileStatusName");
-    $(cell).html(file.name + ":");
+    $(cell).html(fileName + ":");
     $(line).append(cell);
     cell = document.createElement('div');
     $(cell).addClass("progess");
     $(cell).attr("id", codedFileName);
-    $(cell).html("UPLOADING");
+    $(cell).html("Uploading file to Timbuctoo");
     $(line).append(cell);
     $("#fileStatus").append(line);
     line = document.createElement('div');
@@ -198,8 +297,9 @@ function createFileStatusLine(file) {
 }
 
 async function send_file(file, owner_id, datasetName) {
+    const codedFileName = file.name.split('.').join('_');
     const mimeType = getMimeType(file);
-    const url = resources[$("#repo").val()].url + owner_id + "/" + datasetName + "/upload/rdf";
+    const url = resources[$("#repo").val()].url + owner_id + "/" + datasetName + "/upload/rdf?async=true";
     const hsid = $("#hsid").val();
     const data = new FormData();
     acceptedFiles++;
@@ -220,12 +320,9 @@ async function send_file(file, owner_id, datasetName) {
     });
 
     if (response.ok) {
-        create_metadata('Uploaded', file.name);
-        //$("#uploadStatus").addClass("noView");
+        $("#" + codedFileName).html('Uploaded!')
     } else {
-        const paragragh = document.createElement("p");
-        paragraph.html(response.statusText);
-        $("#uploadError").append(paragraph);
+        $("#" + codedFileName).html('ERROR! (File not imported)')
     }
 }
 
@@ -265,6 +362,22 @@ function login() {
     lform.append(field);
     document.getElementById('loginFormDiv').append(lform);
     document.getElementById('loginForm').submit();
+}
+
+function get_creds(hsid) {
+    console.log('OK');
+    $.ajax({
+        type: "GET",
+        url: "https://secure.huygens.knaw.nl/sessions/" + hsid,
+        crossDomain: true,
+        dataType: 'jsonp',
+        success: function (json) {
+            console.log(json);
+        },
+        error: function (err) {
+            console.log(err);
+        }
+    });
 }
 
 function create_metadata(label, value) {
@@ -316,7 +429,7 @@ function validateName() {
         }
     }
     if (!error) {
-        create_dataset($("#ds_name").val(), $("#hsid").val());
+        create_dataset($("#ds_name").val(), $("#ds_baseuri").val(), $("#hsid").val());
     }
 }
 
@@ -335,8 +448,21 @@ function get_dataset_names() {
 function get_dataset_details() {
     url = resources[$("#repo").val()].url + "graphql";
     hsid = $("#hsid").val();
-    query = "query datasetMetaData {dataSets {" + $("#dataset_id").val() +  " {metadata {dataSetId dataSetName title {value} description {value} owner {name {value} email {value}} contact {name {value} email {value}} provenanceInfo {title {value} body {value}}}}}}";
+    metadata = resources[$("#repo").val()].metadata;
+    query = `query datasetMetaData {dataSets { ${$("#dataset_id").val()} {metadata {dataSetId dataSetName ${get_dataset_details_query(metadata)}}}}}`;
     timbuctoo_requests(url, query, hsid);
+}
+
+function get_dataset_details_query(metadata) {
+    let query = '';
+    for (const md of metadata) {
+        query += `${md.key} { `;
+        query += Array.isArray(md.type)
+            ? get_dataset_details_query(md.type)
+            : (md.type === 'uri' ? 'uri' : 'value');
+        query += ' } ';
+    }
+    return query;
 }
 
 async function whoAmI(hsid) {
@@ -424,31 +550,30 @@ function delete_dataset() {
 function sendDataSetData() {
     url = resources[$("#repo").val()].url + "graphql";
     hsid = $("#hsid").val();
-        query = "mutation setMetadata($dataSet:String!, $metadata:DataSetMetadataInput!){setDataSetMetadata(dataSetId:$dataSet,metadata:$metadata){ title{value} description{value} owner{name{value} email{value}} contact{name{value} email{value}} provenanceInfo{title{value} body{value}}}}";
-        variables = {
-            dataSet: $("#dataset_id").val(),
-            metadata: {
-                title: $("#dsdTitle").val(),
-                description: $("#dsdDescription").val(),
-                owner: {
-                    name: $("#dsdOwnerName").val(),
-                    email: $("#dsdOwnerEmail").val()
-                },
-                contact: {
-                    name: $("#dsdContactName").val(),
-                    email: $("#dsdContactEmail").val()},
-                provenanceInfo: {
-                    title: $("#dsdProvenanceTitle").val(),
-                    body: $("#dsdProvenanceBody").val()
-                }
-            }
-        };
+    query = "mutation setMetadata($dataSet:String!, $metadata:DataSetMetadataInput!){setDataSetMetadata(dataSetId:$dataSet,metadata:$metadata){dataSetId}}";
+    variables = {
+        dataSet: $("#dataset_id").val(),
+        metadata: createMetadata(resources[$("#repo").val()].metadata, '')
+    };
     $("#actiontype").val("submit_data");
     timbuctoo_submit(url, query, variables, hsid);
 }
 
+function createMetadata(metadata, key) {
+    const obj = {};
+    for (const md of metadata) {
+        const value = Array.isArray(md.type) ? createMetadata(md.type, key + md.key + '_') : $("#dsd" + key + md.key).val();
+        obj[md.key] = Array.isArray(md.type) || value.trim().length > 0 ? value : null;
+    }
+    return obj;
+}
+
 function editDataset() {
     window.location = home + "?hsid=" + $("#hsid").val() + "&dataset_id=" + $("#dataset_id").val() + "&repo=" + $("#repo").val() + "&actiontype=edit_metadata";
+}
+
+function showStatus() {
+    window.location = home + "?hsid=" + $("#hsid").val() + "&dataset_id=" + $("#dataset_id").val() + "&repo=" + $("#repo").val() + "&actiontype=show_status";
 }
 
 function goHome() {
@@ -462,24 +587,21 @@ function goHome() {
 function dataset_data(result) {
     $("#dsdID").html(result.data.dataSets[$("#dataset_id").val()].metadata.dataSetId);
     $("#dsdName").html(result.data.dataSets[$("#dataset_id").val()].metadata.dataSetName);
-    if (result.data.dataSets[$("#dataset_id").val()].metadata.title !== null) {
-        $("#dsdTitle").html(result.data.dataSets[$("#dataset_id").val()].metadata.title.value);
-    }
-    if (result.data.dataSets[$("#dataset_id").val()].metadata.description !== null) {
-        $("#dsdDescription").html(result.data.dataSets[$("#dataset_id").val()].metadata.description.value);
-    }
-    if (result.data.dataSets[$("#dataset_id").val()].metadata.owner) {
-        $("#dsdOwnerName").html(result.data.dataSets[$("#dataset_id").val()].metadata.owner.name.value);
-        $("#dsdOwnerEmail").html(result.data.dataSets[$("#dataset_id").val()].metadata.owner.email.value);
-    }
-    if (result.data.dataSets[$("#dataset_id").val()].metadata.contact !== null) {
-        $("#dsdContactName").html(result.data.dataSets[$("#dataset_id").val()].metadata.contact.name.value);
-        $("#dsdContactEmail").html(result.data.dataSets[$("#dataset_id").val()].metadata.contact.email.value);
-    }
 
-    if (result.data.dataSets[$("#dataset_id").val()].metadata.provenanceInfo !== null) {
-        $("#dsdProvenanceTitle").html(result.data.dataSets[$("#dataset_id").val()].metadata.provenanceInfo.title.value);
-        $("#dsdProvenanceBody").html(result.data.dataSets[$("#dataset_id").val()].metadata.provenanceInfo.body.value);
+    const metadata = resources[$("#repo").val()].metadata;
+    create_metadata_read_table(metadata, result.data.dataSets[$("#dataset_id").val()].metadata, $('#datasetTable'));
+}
+
+function create_metadata_read_table(metadata, data, elem) {
+    for (const md of metadata) {
+        if (Array.isArray(md.type)) {
+            elem.append(`<tr><td class="dsTableHeader" colspan="2">${md.label}</td></tr>`);
+            create_metadata_read_table(md.type, data[md.key], elem);
+        } else {
+            const value = data !== null && data[md.key] !== null ?
+                (md.type === 'uri' ? data[md.key].uri : data[md.key].value) : '';
+            elem.append($(`<tr><td class="fieldLabel">${md.label}</td><td>${value}</td></tr>`));
+        }
     }
 }
 
@@ -487,26 +609,29 @@ function dataset_edit_data(result) {
     console.log(result);
     $("#dsdID").html(result.data.dataSets[$("#dataset_id").val()].metadata.dataSetId);
     $("#dsdName").html(result.data.dataSets[$("#dataset_id").val()].metadata.dataSetName);
-    if (result.data.dataSets[$("#dataset_id").val()].metadata.title !== null) {
-        $("#dsdTitle").val(result.data.dataSets[$("#dataset_id").val()].metadata.title.value);
-    }
-    if (result.data.dataSets[$("#dataset_id").val()].metadata.description !== null) {
-        $("#dsdDescription").val(result.data.dataSets[$("#dataset_id").val()].metadata.description.value);
-    }
-    if (result.data.dataSets[$("#dataset_id").val()].metadata.owner) {
-        $("#dsdOwnerName").val(result.data.dataSets[$("#dataset_id").val()].metadata.owner.name.value);
-        $("#dsdOwnerEmail").val(result.data.dataSets[$("#dataset_id").val()].metadata.owner.email.value);
-    }
-    if (result.data.dataSets[$("#dataset_id").val()].metadata.contact !== null) {
-        $("#dsdContactName").val(result.data.dataSets[$("#dataset_id").val()].metadata.contact.name.value);
-        $("#dsdContactEmail").val(result.data.dataSets[$("#dataset_id").val()].metadata.contact.email.value);
-    }
 
-    if (result.data.dataSets[$("#dataset_id").val()].metadata.provenanceInfo !== null) {
-        $("#dsdProvenanceTitle").val(result.data.dataSets[$("#dataset_id").val()].metadata.provenanceInfo.title.value);
-        $("#dsdProvenanceBody").val(result.data.dataSets[$("#dataset_id").val()].metadata.provenanceInfo.body.value);
-    }
+    const metadata = resources[$("#repo").val()].metadata;
+    create_metadata_edit_table(metadata, result.data.dataSets[$("#dataset_id").val()].metadata, $('#datasetTable'), '');
+}
 
+function create_metadata_edit_table(metadata, data, elem, key) {
+    for (const md of metadata) {
+        if (Array.isArray(md.type)) {
+            elem.append(`<tr><td class="dsTableHeader" colspan="2">${md.label}</td></tr>`);
+            create_metadata_edit_table(md.type, data[md.key], elem, key + md.key + '_');
+        } else {
+            const inputElem = md.type === 'multi'
+                ? $(`<textarea id="dsd${key + md.key}" rows="8" cols="60"></textarea>`)
+                : $(`<input id="dsd${key + md.key}" type="text" size="100"/>`);
+            inputElem.val(data !== null && data[md.key] !== null ?
+                (md.type === 'uri' ? data[md.key].uri : data[md.key].value) : '');
+
+            const elemToAppend = $(`<tr><td class="fieldLabel">${md.label}</td><td class="fieldValue"></td></tr>`);
+            elemToAppend.find('.fieldValue').append(inputElem);
+
+            elem.append(elemToAppend);
+        }
+    }
 }
 
 function buildSelect(result) {
@@ -532,8 +657,10 @@ function buildList(result) {
     }
 }
 
-async function create_dataset(name, hsid) {
-    const query = "mutation {createDataSet(dataSetName: \"" + name + "\") {dataSetId dataSetName ownerId}}";
+async function create_dataset(name, baseuri, hsid) {
+    const query = baseuri
+        ? "mutation {createDataSet(dataSetName: \"" + name + "\", baseUri:  \"" + baseuri + "\") {dataSetId dataSetName ownerId}}"
+        : "mutation {createDataSet(dataSetName: \"" + name + "\") {dataSetId dataSetName ownerId}}";
     console.log(JSON.stringify({"query": query}));
     let response = await fetch(resources[$("#repo").val()].url + "graphql", {
         method: "POST",

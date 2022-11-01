@@ -51,6 +51,18 @@ function show_dataset_details($hsid, $repo, $actiontype, $dataset_id) {
     $smarty->view('page');
 }
 
+function show_dataset_status($hsid, $repo, $actiontype, $dataset_id) {
+    global $smarty;
+
+    $smarty->assign('logged_in', true);
+    $smarty->assign('hsid', $hsid);
+    $smarty->assign('repo', $repo);
+    $smarty->assign('actiontype', $actiontype);
+    $smarty->assign('dataset_id', $dataset_id);
+    $smarty->assign('content', $smarty->view2var('show_status'));
+    $smarty->view('page');
+}
+
 function select_dataset($hsid, $repo, $actiontype) {
     global $smarty;
 
