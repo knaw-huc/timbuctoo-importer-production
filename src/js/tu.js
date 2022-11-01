@@ -1,6 +1,6 @@
 const login_server = 'https://secure.huygens.knaw.nl/saml2/login';
-const home = "http://www.huc.localhost/timbuctoo_uploader/";
-//const home = "https://timporter.sd.di.huc.knaw.nl/";
+//const home = "http://www.huc.localhost/timbuctoo_uploader/";
+const home = "https://timporter.sd.di.huc.knaw.nl/";
 
 const defaultMetadata = [{
     key: 'title',
