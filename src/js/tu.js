@@ -65,9 +65,9 @@ const gaMetadata = [{
     label: 'Description',
     type: 'multi'
 }, {
-    key: 'image',
+    key: 'imageUrl',
     label: 'Image URL',
-    type: 'uri'
+    type: 'value'
 }, {
     key: 'license',
     label: 'License',
@@ -556,6 +556,8 @@ function sendDataSetData() {
         metadata: createMetadata(resources[$("#repo").val()].metadata, '')
     };
     $("#actiontype").val("submit_data");
+    console.log(query);
+    console.log(variables);
     timbuctoo_submit(url, query, variables, hsid);
 }
 
